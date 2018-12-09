@@ -1,0 +1,133 @@
+---
+title: "PA1_template"
+author: "Narayan Menon"
+date: "December 8, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r library}
+library(dplyr)
+```
+
+Load the file from working directory
+
+```{r}
+act <- read.csv("activity.csv")
+
+#convert the date from factor
+act$date <- as.Date(act$date)
+```
+
+
+Calculate total steps in a day
+```{r}
+daily_act <- aggregate(act$steps,by=list(act$date),sum)
+```
+
+Draw a histogram of total steps in a day
+```{r}
+hist(daily_act$x)
+```
+
+Mean number of steps in a day
+```{r}
+mean(daily_act$x,na.rm=TRUE)
+```
+
+Median number of steps in a day
+```{r}
+median(daily_act$x,na.rm=TRUE)
+```
+
+Calculate total steps by interval across all days
+```{r}
+daily_interval_act <- aggregate(act$steps,by=list(act$interval),mean,na.rm=TRUE)
+```
+
+Graph showing average number of steps by intervals
+```{r}
+plot(x=daily_interval_act$Group.1,y=daily_interval_act$x,type="l",xaxt="n",
+     xlab="Intervals",ylab="Average steps")
+axis(1, at=seq(0, 2355, by=50))
+```
+
+
+Interval that has highest average number of steps
+```{r}
+daily_interval_act[daily_interval_act$x==max(daily_interval_act$x),]$Group.1
+```
+
+Count of missing values in the dataset
+```{r}
+sum(is.na(act$steps))
+```
+
+Function to return mean steps of an interval
+```{r}
+getIntMean <- function(interval) {
+    daily_interval_act[daily_interval_act$Group.1==
+                         as.numeric(interval),][[2]]}
+```
+
+Function to get adjusted steps to remove all NAs
+```{r}
+getAdjustedSteps <- function(steps,intMean) {
+    if (is.na(steps)) {
+        intMean
+    }
+    else {
+        steps
+    }
+}
+```
+
+Create a new data frame that includes a column that has no NAs for steps
+```{r}
+act1 <- act %>% rowwise() %>% mutate(intMean=getIntMean(interval))
+act2 <- act1 %>% rowwise() %>% mutate(adjSteps=getAdjustedSteps(steps,intMean))
+```
+
+
+Histogram of total steps each day
+```{r}
+daily_adj_act <- aggregate(act2$adjSteps,by=list(act2$date),sum)
+hist(daily_adj_act$x)
+```
+
+Adjusted mean
+```{r}
+mean(daily_adj_act$x)
+```
+Adjusted median
+```{r}
+median(daily_adj_act$x)
+```
+Add a factor variable to indicate if it is weekday or weekend
+```{r}
+act2$dayInd <- factor(weekdays(act2$date) %in% c('Saturday','Sunday'),
+                      levels=c('TRUE','FALSE'), labels=c('weekend','weekday'))
+```
+
+Total steps by interval across all weekdays & weekends 
+```{r}
+act2weekday <- act2 %>% filter(dayInd == 'weekday')
+act2weekend <- act2 %>% filter(dayInd == 'weekend')
+daily_adj_weekday_interval_act <- aggregate(act2weekday$adjSteps,by=list(act2weekday$interval),mean)
+daily_adj_weekend_interval_act <- aggregate(act2weekend$adjSteps,by=list(act2weekend$interval),mean)
+```
+
+Graph of average steps for weekdays and weekends
+```{r}
+plot(x=daily_adj_weekday_interval_act$Group.1,y=daily_adj_weekday_interval_act$x,type="l",xaxt="n",
+      xlab="Intervals",ylab="Average steps",col="blue")
+points(x=daily_adj_weekend_interval_act$Group.1,y=daily_adj_weekend_interval_act$x,type="l",col="red")
+axis(1, at=seq(0, 2355, by=50))
+legend("topright", legend=c("Weekend", "Weekday"),
+      col=c("red", "blue"), lty=1, cex=0.8)
+```
+
